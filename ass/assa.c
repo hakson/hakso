@@ -242,21 +242,58 @@ void add(int count, char** strings, PeopleData* pd)
 		pd->people[p1p].child_c++;
 		pd->people[p1p].children[pd->people[p1p].child_c - 1] = p2p;
 	}
-	else if (strcmp(relationship, "fgf") == 0)
+	else if (strcmp(relationship, "fgf") == 0 || strcmp(relationship, "fgm") == 0 || strcmp(relationship, "mgf") == 0 || strcmp(relationship, "mgm") == 0)
 	{
-		if (pd->people[p2p].father == -1) // if there is no father we need one with questionmark
+		bool has_parent = true;
+		if (relationship[0] == 'f')
+		{
+			if (pd->people[p2p].father == -1)
+			{
+				has_parent = false;
+			}
+		}
+		else
+		{
+			if (pd->people[p2p].mother == -1)
+			{
+				has_parent = false;
+			}
+		}
+
+		if (!has_parent) // if there is no father we need one with questionmark
 		{
 			Person f = { .name = NULL,.sex = M,.father = -1,.mother = -1,.children = NULL };
 			f.name = realloc(f.name, sizeof(char*) * 2);
 			f.name[0] = '?';
 			f.name[1] = (char)NULL;
-			f.sex = M;
-			f.father = p1p;
+			if (relationship[0] == 'f')
+			{
+				f.sex = M;
+			}
+			else
+			{
+				f.sex = F;
+			}
+			if (relationship[2] == 'f')
+			{
+				f.father = p1p;
+			}
+			else
+			{
+				f.mother = p1p;
+			}
 			f.children = realloc(f.children, sizeof(int));
 			f.children[0] = p2p;
 			f.child_c++;
 			// child of f
-			pd->people[p2p].father = addPerson(f, pd);
+			if (relationship[0] == 'f')
+			{
+				pd->people[p2p].father = addPerson(f, pd);
+			}
+			else
+			{
+				pd->people[p2p].mother = addPerson(f, pd);
+			}
 			// parent of f
 			pd->people[p1p].child_c++;
 			//free(p1p->children);
@@ -338,22 +375,22 @@ int addPerson(Person p, PeopleData* pd)
 		if (pd->unknowns < 10)
 		{
 			p.name = realloc(p.name, sizeof(char*) * 3);
-			number[1] = (char)NULL;
+			number[1] = (char)0;
 		}
 		else if (pd->unknowns >= 10)
 		{
 			p.name = realloc(p.name, sizeof(char*) * 4);
-			number[2] = (char)NULL;
+			number[2] = (char)0;
 		}
 		else if (pd->unknowns >= 100)
 		{
 			p.name = realloc(p.name, sizeof(char*) * 5);
-			number[3] = (char)NULL;
+			number[3] = (char)0;
 		}
 		else if (pd->unknowns >= 1000)
 		{
 			p.name = realloc(p.name, sizeof(char*) * 6);
-			number[4] = (char)NULL;
+			number[4] = (char)0;
 		}
 		else
 		{
