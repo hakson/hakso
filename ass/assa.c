@@ -19,9 +19,9 @@ typedef struct _Person_
 {
 	char* name;
 	Sex sex;
-	struct _Person_* father;
-	struct _Person_* mother;
-	struct _Person_** children;
+	int father;
+	int mother;
+	int* children;
 	int child_c;
 } Person;
 
@@ -42,7 +42,7 @@ void readInput(int* count, char*** strings);
 int addPerson(Person p, PeopleData* pd);
 int getPerson(Person p, PeopleData* pd);
 int getPersonByName(char* name, Sex sex, PeopleData* pd);
-void printPerson(Person* p);
+void printPerson(Person* p, PeopleData* pd);
 void printPeople(PeopleData* pd);
 
 
@@ -103,14 +103,15 @@ void add(int count, char** strings, PeopleData* pd)
 		return;
 	}
 
-	Person p1 = { .name = NULL,.sex = M,.father = NULL,.mother = NULL,.children = NULL };
-	Person p2 = { .name = NULL,.sex = M,.father = NULL,.mother = NULL,.children = NULL };
+	Person p1 = { .name = NULL,.sex = M,.father = -1,.mother = -1,.children = NULL };
+	Person p2 = { .name = NULL,.sex = M,.father = -1,.mother = -1,.children = NULL };
 
 	int names_len[2] = { 0,0 };
-	char *names[2] = { NULL, NULL };
+	char *names[2] = { NULL,NULL };
 	int names_start[2] = { -1,-1 };
 	int names_end[2] = { -1,-1 };
 
+	// find out position of the name and if male or female
 	int i;
 	for (i = 1; i < count; i++)
 	{
@@ -148,11 +149,12 @@ void add(int count, char** strings, PeopleData* pd)
 		}
 	}
 
-	if (names_end[0] == -1 || names_end[1] == -1)
+	if (names_start[0] == -1 || names_start[1] == -1, names_end[0] == -1 || names_end[1] == -1) // return if names not found
 	{
 		return;
 	}
 
+	// copy names to people
 	for (i = 0; i < 2; i++)
 	{
 		int j;
@@ -173,18 +175,19 @@ void add(int count, char** strings, PeopleData* pd)
 			names[i][l] = ' ';
 		}
 		l--;
-		names[i][l] = (char)NULL;
+		names[i][l] = (char)0;
 	}
 
 	p1.name = names[0];
 	p2.name = names[1];
 
+	// get people if the exist and create them if they dont
 	int p1p = getPerson(p1, pd);
 	if (p1p == -1)
 	{
 		p1p = addPerson(p1, pd);
 		printf("added: ");
-		printPerson(&pd->people[pd->people_c - 1]);
+		printPerson(&pd->people[pd->people_c - 1], pd);
 	}
 	else
 	{
@@ -198,7 +201,7 @@ void add(int count, char** strings, PeopleData* pd)
 	{
 		p2p = addPerson(p2, pd);
 		printf("added: ");
-		printPerson(&pd->people[pd->people_c - 1]);
+		printPerson(&pd->people[pd->people_c - 1], pd);
 	}
 	else
 	{
@@ -211,7 +214,7 @@ void add(int count, char** strings, PeopleData* pd)
 	char* relationship = strings[names_end[0] + 1];
 	if (strcmp(relationship, "father") == 0)
 	{
-		if (pd->people[p2p].father != NULL)
+		if (pd->people[p2p].father != -1)
 		{
 			return;
 		}
@@ -219,14 +222,14 @@ void add(int count, char** strings, PeopleData* pd)
 		{
 			return;
 		}
-		pd->people[p2p].father = &pd->people[p1p];
-		pd->people[p1p].children = realloc(pd->people[p1p].children, sizeof(Person*) * (pd->people[p1p].child_c + 1));
+		pd->people[p2p].father = p1p;
+		pd->people[p1p].children = realloc(pd->people[p1p].children, sizeof(int) * (pd->people[p1p].child_c + 1));
 		pd->people[p1p].child_c++;
-		pd->people[p1p].children[pd->people[p1p].child_c - 1] = &pd->people[p2p];
+		pd->people[p1p].children[pd->people[p1p].child_c - 1] = p2p;
 	}
 	else if (strcmp(relationship, "mother") == 0)
 	{
-		if (pd->people[p2p].mother != NULL)
+		if (pd->people[p2p].mother != -1)
 		{
 			return;
 		}
@@ -234,38 +237,38 @@ void add(int count, char** strings, PeopleData* pd)
 		{
 			return;
 		}
-		pd->people[p2p].mother = &pd->people[p1p];
-		pd->people[p1p].children = realloc(pd->people[p1p].children, sizeof(Person*) * (pd->people[p1p].child_c + 1));
+		pd->people[p2p].mother = p1p;
+		pd->people[p1p].children = realloc(pd->people[p1p].children, sizeof(int) * (pd->people[p1p].child_c + 1));
 		pd->people[p1p].child_c++;
-		pd->people[p1p].children[pd->people[p1p].child_c - 1] = &pd->people[p2p];
+		pd->people[p1p].children[pd->people[p1p].child_c - 1] = p2p;
 	}
 	else if (strcmp(relationship, "fgf") == 0)
 	{
-		if (pd->people[p2p].father == NULL) // if there is no father we need one with questionmark
+		if (pd->people[p2p].father == -1) // if there is no father we need one with questionmark
 		{
-			Person f = { .name = NULL,.sex = M,.father = NULL,.mother = NULL,.children = NULL };
+			Person f = { .name = NULL,.sex = M,.father = -1,.mother = -1,.children = NULL };
 			f.name = realloc(f.name, sizeof(char*) * 2);
 			f.name[0] = '?';
 			f.name[1] = (char)NULL;
 			f.sex = M;
-			f.father = &pd->people[p1p];
-			f.children = realloc(f.children, sizeof(Person*));
-			f.children[0] = &pd->people[p2p];
+			f.father = p1p;
+			f.children = realloc(f.children, sizeof(int));
+			f.children[0] = p2p;
 			f.child_c++;
 			// child of f
-			pd->people[p2p].father = &pd->people[addPerson(f, pd)];
+			pd->people[p2p].father = addPerson(f, pd);
 			// parent of f
 			pd->people[p1p].child_c++;
 			//free(p1p->children);
 			//Person** cp = malloc(sizeof(Person*) * p1p->child_c);
-			pd->people[p1p].children = (Person**)realloc(pd->people[p1p].children, sizeof(Person*) * pd->people[p1p].child_c);
+			pd->people[p1p].children = realloc(pd->people[p1p].children, sizeof(int) * pd->people[p1p].child_c);
 			pd->people[p1p].children[pd->people[p1p].child_c - 1] = pd->people[p2p].father;
 		}
 
-		if (pd->people[p2p].father->father == NULL)
+		if (pd->people[pd->people[p2p].father].father == -1)
 		{
 			// set the grandfather
-			pd->people[p2p].father->father = &pd->people[p1p];
+			pd->people[pd->people[p2p].father].father = p1p;
 		}
 	}
 
@@ -394,7 +397,7 @@ int getPersonByName(char* name, Sex sex, PeopleData* pd)
 	return getPerson(p, pd);
 }
 
-void printPerson(Person* p)
+void printPerson(Person* p, PeopleData* pd)
 {
 	printf("%s, ", p->name);
 
@@ -407,14 +410,14 @@ void printPerson(Person* p)
 		printf("[f], ");
 	}
 
-	if (p->father != NULL)
+	if (p->father != -1)
 	{
-		printf("father: %s, ", p->father->name);
+		printf("father: %s, ", pd->people[p->father].name);
 	}
 
-	if (p->mother != NULL)
+	if (p->mother != -1)
 	{
-		printf("mother: %s, ", p->mother->name);
+		printf("mother: %s, ", pd->people[p->mother].name);
 	}
 
 	if (p->child_c != 0)
@@ -423,7 +426,7 @@ void printPerson(Person* p)
 		int i;
 		for (i = 0; i < p->child_c; i++)
 		{
-			printf("\t%s", p->children[i]->name);
+			printf("\t%s", pd->people[p->children[i]].name);
 		}
 	}
 
@@ -435,6 +438,6 @@ void printPeople(PeopleData* pd)
 	int i;
 	for (i = 0; i < pd->people_c; i++)
 	{
-		printPerson(&pd->people[i]);
+		printPerson(&pd->people[i], pd);
 	}
 }
