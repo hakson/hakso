@@ -1,2 +1,3 @@
 add kunibert ba [m] fgf maghret al von der bohm [f]
 add ma lu [f] mother kunibert ba [m]
+add ark bohm [m] father maghret al von der bohm [f]

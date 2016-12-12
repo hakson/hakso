@@ -3,6 +3,7 @@
 #include <string.h>
 #include <assert.h>
 
+#define DEBUG
 #define BUFFER_LEN 100
 
 typedef int bool;
@@ -214,7 +215,7 @@ void add(int count, char** strings, PeopleData* pd)
 	char* relationship = strings[names_end[0] + 1];
 	if (strcmp(relationship, "father") == 0)
 	{
-		if (pd->people[p2p].father != -1)
+		if (pd->people[p2p].father != -1 || pd->people[pd->people[p2p].father].name[0] == '?')
 		{
 			return;
 		}
@@ -309,11 +310,11 @@ void add(int count, char** strings, PeopleData* pd)
 		}
 	}
 
-	printf("\n--\n");
-
+#ifdef DEBUG
+	printf("\n--\t--\n\n");
 	printPeople(pd);
-
-	printf("\n--\n");
+	printf("\n\n--\t--\n\n");
+#endif // DEBUG
 }
 
 void drawAll(int count, char** strings, PeopleData* pd)
@@ -396,12 +397,13 @@ int addPerson(Person p, PeopleData* pd)
 		{
 			// hmm
 		}
+
 		int i;
 		for (i = 0; i < (int)strlen(number); i++)
 		{
 			p.name[i + 1] = number[i];
 		}
-		p.name[i + 1] = (char)NULL;
+		p.name[i + 1] = (char)0;
 	}
 
 	pd->people_c++;
