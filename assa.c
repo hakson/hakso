@@ -7,8 +7,8 @@
 #define BUFFER_LEN 100
 
 typedef int bool;
-#define true 1
-#define false 0
+#define FALSE (0)
+#define TRUE (!FALSE)
 
 typedef enum _Sex_
 {
@@ -20,15 +20,22 @@ typedef struct _Person_
 {
 	char* name;
 	Sex sex;
-	int father;
-	int mother;
-	int* children;
+	union
+	{
+		struct
+		{
+			struct _Person_* father;
+			struct _Person_* mother;
+		};
+		struct _Person_* parents[2];
+	};
+	struct _Person_** children;
 	int child_c;
 } Person;
 
 typedef struct _PeopleData_
 {
-	Person* people;
+	Person** people;
 	int people_c;
 	int unknowns;
 } PeopleData;
@@ -40,11 +47,11 @@ void draw(int count, char** strings, PeopleData* pd);
 void relationship(int count, char** strings, PeopleData* pd);
 void list(int count, char** strings, PeopleData* pd);
 void readInput(int* count, char*** strings);
-int addPerson(Person p, PeopleData* pd);
-int getPerson(Person p, PeopleData* pd);
-int getPersonByName(char* name, Sex sex, PeopleData* pd);
-void printPerson(Person* p, PeopleData* pd);
-void printPeople(PeopleData* pd);
+void addPerson(Person* p, PeopleData* pd);
+Person* getPerson(const Person p, const PeopleData* pd);
+Person* getPersonByName(char* name, const Sex sex, const PeopleData* pd);
+void printPerson(const Person* p, const PeopleData* pd);
+void printPeople(const PeopleData* pd);
 
 
 int main(int argc, char* argv)
@@ -58,7 +65,7 @@ int main(int argc, char* argv)
 	//parsing of parameters
 
 	// main program loop
-	while (true)
+	while (TRUE)
 	{
 		int count = 0;
 		char** strings = NULL;
@@ -104,8 +111,20 @@ void add(int count, char** strings, PeopleData* pd)
 		return;
 	}
 
-	Person p1 = { .name = NULL,.sex = M,.father = -1,.mother = -1,.children = NULL };
-	Person p2 = { .name = NULL,.sex = M,.father = -1,.mother = -1,.children = NULL };
+	Person* p1 = malloc(sizeof(Person));
+	p1->name = NULL;
+	p1->sex = M;
+	p1->father = NULL;
+	p1->mother = NULL;
+	p1->children = NULL;
+	p1->child_c = 0;
+	Person* p2 = malloc(sizeof(Person));
+	p2->name = NULL;
+	p2->sex = M;
+	p2->father = NULL;
+	p2->mother = NULL;
+	p2->children = NULL;
+	p2->child_c = 0;
 
 	int names_len[2] = { 0,0 };
 	char *names[2] = { NULL,NULL };
@@ -118,14 +137,14 @@ void add(int count, char** strings, PeopleData* pd)
 	{
 		if (strcmp(strings[i], "[m]") == 0)
 		{
-			p1.sex = M;
+			p1->sex = M;
 			names_start[0] = 1;
 			names_end[0] = i;
 			break;
 		}
 		if (strcmp(strings[i], "[f]") == 0)
 		{
-			p1.sex = F;
+			p1->sex = F;
 			names_start[0] = 1;
 			names_end[0] = i;
 			break;
@@ -136,14 +155,14 @@ void add(int count, char** strings, PeopleData* pd)
 	{
 		if (strcmp(strings[i], "[m]") == 0)
 		{
-			p2.sex = M;
+			p2->sex = M;
 			names_start[1] = names_end[0] + 2;
 			names_end[1] = i;
 			break;
 		}
 		if (strcmp(strings[i], "[f]") == 0)
 		{
-			p2.sex = F;
+			p2->sex = F;
 			names_start[1] = names_end[0] + 2;
 			names_end[1] = i;
 			break;
@@ -179,137 +198,118 @@ void add(int count, char** strings, PeopleData* pd)
 		names[i][l] = (char)0;
 	}
 
-	p1.name = names[0];
-	p2.name = names[1];
-
-	// get people if the exist and create them if they dont
-	int p1p = getPerson(p1, pd);
-	if (p1p == -1)
-	{
-		p1p = addPerson(p1, pd);
-		printf("added: ");
-		printPerson(&pd->people[pd->people_c - 1], pd);
-	}
-	else
-	{
-		free(p1.name);
-		p1 = pd->people[p1p];
-		printf("not added\n");
-	}
-
-	int p2p = getPerson(p2, pd);
-	if (p2p == -1)
-	{
-		p2p = addPerson(p2, pd);
-		printf("added: ");
-		printPerson(&pd->people[pd->people_c - 1], pd);
-	}
-	else
-	{
-		free(p2.name);
-		p2 = pd->people[p2p];
-		printf("not added\n");
-	}
+	p1->name = names[0];
+	p2->name = names[1];
 
 	// relationship
 	char* relationship = strings[names_end[0] + 1];
-	if (strcmp(relationship, "father") == 0)
+	if (strcmp(relationship, "father") == 0 || strcmp(relationship, "mother") == 0)
 	{
-		if (pd->people[p2p].father != -1 || pd->people[pd->people[p2p].father].name[0] == '?')
+		Sex parent = strcmp(relationship, "father") != 0;
+		if (getPerson(*p2, pd) == NULL)
 		{
-			return;
-		}
-		if (pd->people[p1p].sex != M)
-		{
-			return;
-		}
-		pd->people[p2p].father = p1p;
-		pd->people[p1p].children = realloc(pd->people[p1p].children, sizeof(int) * (pd->people[p1p].child_c + 1));
-		pd->people[p1p].child_c++;
-		pd->people[p1p].children[pd->people[p1p].child_c - 1] = p2p;
-	}
-	else if (strcmp(relationship, "mother") == 0)
-	{
-		if (pd->people[p2p].mother != -1)
-		{
-			return;
-		}
-		if (pd->people[p1p].sex != F)
-		{
-			return;
-		}
-		pd->people[p2p].mother = p1p;
-		pd->people[p1p].children = realloc(pd->people[p1p].children, sizeof(int) * (pd->people[p1p].child_c + 1));
-		pd->people[p1p].child_c++;
-		pd->people[p1p].children[pd->people[p1p].child_c - 1] = p2p;
-	}
-	else if (strcmp(relationship, "fgf") == 0 || strcmp(relationship, "fgm") == 0 || strcmp(relationship, "mgf") == 0 || strcmp(relationship, "mgm") == 0)
-	{
-		bool has_parent = true;
-		if (relationship[0] == 'f')
-		{
-			if (pd->people[p2p].father == -1)
+			if (getPerson(*p1, pd) == NULL) // both unknown
 			{
-				has_parent = false;
+				addPerson(p1, pd);
 			}
+			else // parent known
+			{
+				Person* temp = p1;
+				p1 = getPerson(*p1, pd);
+				free(temp->name);
+				free(temp->children);
+				free(temp);
+			}
+
+			addPerson(p2, pd);
+			p1->child_c++;
+			p1->children = realloc(p1->children, sizeof(Person*) * p1->child_c);
+			p1->children[p1->child_c - 1] = p2;
+			p2->parents[parent] = p1;
 		}
 		else
 		{
-			if (pd->people[p2p].mother == -1)
-			{
-				has_parent = false;
-			}
-		}
+			Person* temp = p2;
+			p2 = getPerson(*p2, pd);
+			free(temp->name);
+			free(temp->children);
+			free(temp);
 
-		if (!has_parent) // if there is no father we need one with questionmark
-		{
-			Person f = { .name = NULL,.sex = M,.father = -1,.mother = -1,.children = NULL };
-			f.name = realloc(f.name, sizeof(char*) * 2);
-			f.name[0] = '?';
-			f.name[1] = (char)NULL;
-			if (relationship[0] == 'f')
+			if (getPerson(*p1, pd) == NULL) // parent unknown
 			{
-				f.sex = M;
-			}
-			else
-			{
-				f.sex = F;
-			}
-			if (relationship[2] == 'f')
-			{
-				f.father = p1p;
-			}
-			else
-			{
-				f.mother = p1p;
-			}
-			f.children = realloc(f.children, sizeof(int));
-			f.children[0] = p2p;
-			f.child_c++;
-			// child of f
-			if (relationship[0] == 'f')
-			{
-				pd->people[p2p].father = addPerson(f, pd);
-			}
-			else
-			{
-				pd->people[p2p].mother = addPerson(f, pd);
-			}
-			// parent of f
-			pd->people[p1p].child_c++;
-			//free(p1p->children);
-			//Person** cp = malloc(sizeof(Person*) * p1p->child_c);
-			pd->people[p1p].children = realloc(pd->people[p1p].children, sizeof(int) * pd->people[p1p].child_c);
-			pd->people[p1p].children[pd->people[p1p].child_c - 1] = pd->people[p2p].father;
-		}
+				bool parent_null = p2->parents[parent] == NULL;
 
-		if (pd->people[pd->people[p2p].father].father == -1)
-		{
-			// set the grandfather
-			pd->people[pd->people[p2p].father].father = p1p;
+				if (!parent_null)
+				{
+					assert(p2->parents[parent]->name != NULL);
+					bool parent_unknown = p2->parents[parent]->name[0] == '?';
+
+					if (parent_unknown)
+					{
+						temp = p1;
+						free(p2->parents[parent]->name);
+						p2->parents[parent]->name = p1->name;
+						p2->parents[parent]->sex = p1->sex;
+						free(p1->children); // probably not necesary
+						free(p1);
+						p1 = p2->parents[parent];
+					}
+					else
+					{
+						// impossible
+					}
+				}
+				else
+				{
+					addPerson(p1, pd);
+					p1->child_c++;
+					p1->children = realloc(p1->children, sizeof(Person*) * p1->child_c);
+					p1->children[p1->child_c - 1] = p2;
+					p2->parents[parent] = p1;
+				}
+			}
+			else // both are known
+			{
+				//hmmmmmmmm
+			}
 		}
 	}
+	else if (strcmp(relationship, "fgf") == 0 ||
+		strcmp(relationship, "fgm") == 0 ||
+		strcmp(relationship, "mgf") == 0 ||
+		strcmp(relationship, "mgm") == 0)
+	{
+		Sex parent1 = relationship[0] != 'f';
+		Sex parent2 = relationship[2] != 'f';
 
+		if (getPerson(*p2, pd) == NULL)
+		{
+			if (getPerson(*p1, pd) == NULL) // both unknown
+			{
+				addPerson(p1, pd);
+				addPerson(p2, pd);
+				Person* unknown_person = malloc(sizeof(Person));
+				unknown_person->name = malloc(sizeof(char));
+				unknown_person->name[0] = '?';
+				unknown_person->name[1] = (char)0;
+				unknown_person->sex = parent1;
+				unknown_person->child_c = 1;
+				unknown_person->children = malloc(sizeof(Person*));
+				unknown_person->children[0] = p2;
+				unknown_person->parents[parent2] = p1;
+				unknown_person->parents[!parent2] = NULL;
+				addPerson(unknown_person, pd);
+				p1->child_c++;
+				p1->children = malloc(sizeof(Person*));
+				p1->children[0] = unknown_person;
+				p2->parents[parent1] = unknown_person;
+			}
+			else // parent known
+			{
+
+			}
+		}
+	}
 #ifdef DEBUG
 	printf("\n--\t--\n\n");
 	printPeople(pd);
@@ -366,31 +366,31 @@ void readInput(int* count, char*** strings)
 	}
 }
 
-int addPerson(Person p, PeopleData* pd)
+void addPerson(Person* p, PeopleData* pd)
 {
-	if (strcmp(p.name, "?") == 0)
+	if (strcmp(p->name, "?") == 0)
 	{
-		p.name = realloc(p.name, sizeof(char*) * 2);
+		p->name = realloc(p->name, sizeof(char*) * 2);
 		char number[5];
 		sprintf(number, "%d", pd->unknowns);
 		if (pd->unknowns < 10)
 		{
-			p.name = realloc(p.name, sizeof(char*) * 3);
+			p->name = realloc(p->name, sizeof(char*) * 3);
 			number[1] = (char)0;
 		}
 		else if (pd->unknowns >= 10)
 		{
-			p.name = realloc(p.name, sizeof(char*) * 4);
+			p->name = realloc(p->name, sizeof(char*) * 4);
 			number[2] = (char)0;
 		}
 		else if (pd->unknowns >= 100)
 		{
-			p.name = realloc(p.name, sizeof(char*) * 5);
+			p->name = realloc(p->name, sizeof(char*) * 5);
 			number[3] = (char)0;
 		}
 		else if (pd->unknowns >= 1000)
 		{
-			p.name = realloc(p.name, sizeof(char*) * 6);
+			p->name = realloc(p->name, sizeof(char*) * 6);
 			number[4] = (char)0;
 		}
 		else
@@ -401,34 +401,33 @@ int addPerson(Person p, PeopleData* pd)
 		int i;
 		for (i = 0; i < (int)strlen(number); i++)
 		{
-			p.name[i + 1] = number[i];
+			p->name[i + 1] = number[i];
 		}
-		p.name[i + 1] = (char)0;
+		p->name[i + 1] = (char)0;
 	}
 
 	pd->people_c++;
-	pd->people = realloc(pd->people, sizeof(Person) * pd->people_c);
+	pd->people = realloc(pd->people, sizeof(Person*) * pd->people_c);
 	pd->people[pd->people_c - 1] = p;
-	return pd->people_c - 1;
 }
 
-int getPerson(Person p, PeopleData* pd)
+Person* getPerson(const Person p, const PeopleData* pd)
 {
 	int i;
 	for (i = 0; i < pd->people_c; i++)
 	{
-		if (strcmp(pd->people[i].name, p.name) == 0)
+		if (strcmp(pd->people[i]->name, p.name) == 0)
 		{
-			if (pd->people[i].sex == p.sex)
+			if (pd->people[i]->sex == p.sex)
 			{
-				return i;
+				return pd->people[i];
 			}
 		}
 	}
-	return -1;
+	return NULL;
 }
 
-int getPersonByName(char* name, Sex sex, PeopleData* pd)
+Person* getPersonByName(char* name, const Sex sex, const PeopleData* pd)
 {
 	Person p;
 	p.name = name;
@@ -436,7 +435,7 @@ int getPersonByName(char* name, Sex sex, PeopleData* pd)
 	return getPerson(p, pd);
 }
 
-void printPerson(Person* p, PeopleData* pd)
+void printPerson(const Person* p, const PeopleData* pd)
 {
 	printf("%s, ", p->name);
 
@@ -449,14 +448,14 @@ void printPerson(Person* p, PeopleData* pd)
 		printf("[f], ");
 	}
 
-	if (p->father != -1)
+	if (p->father != NULL)
 	{
-		printf("father: %s, ", pd->people[p->father].name);
+		printf("father: %s, ", p->father->name);
 	}
 
-	if (p->mother != -1)
+	if (p->mother != NULL)
 	{
-		printf("mother: %s, ", pd->people[p->mother].name);
+		printf("mother: %s, ", p->mother->name);
 	}
 
 	if (p->child_c != 0)
@@ -465,18 +464,18 @@ void printPerson(Person* p, PeopleData* pd)
 		int i;
 		for (i = 0; i < p->child_c; i++)
 		{
-			printf("\t%s", pd->people[p->children[i]].name);
+			printf("\t%s", p->children[i]->name);
 		}
 	}
 
 	printf("\n");
 }
 
-void printPeople(PeopleData* pd)
+void printPeople(const PeopleData* pd)
 {
 	int i;
 	for (i = 0; i < pd->people_c; i++)
 	{
-		printPerson(&pd->people[i], pd);
+		printPerson(pd->people[i], pd);
 	}
 }
