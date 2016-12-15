@@ -48,6 +48,7 @@ void relationship(int count, char** strings, PeopleData* pd);
 void list(int count, char** strings, PeopleData* pd);
 void readInput(int* count, char*** strings);
 void addPerson(Person* p, PeopleData* pd);
+void removePerson(Person* p, PeopleData* pd);
 Person* getPerson(const Person p, const PeopleData* pd);
 Person* getPersonByName(char* name, const Sex sex, const PeopleData* pd);
 void printPerson(const Person* p, const PeopleData* pd);
@@ -202,10 +203,17 @@ void add(int count, char** strings, PeopleData* pd)
 	p2->name = names[1];
 
 	// relationship
+	Person* temp;
 	char* relationship = strings[names_end[0] + 1];
 	if (strcmp(relationship, "father") == 0 || strcmp(relationship, "mother") == 0)
 	{
 		Sex parent = strcmp(relationship, "father") != 0;
+		if (parent != p1->sex)
+		{
+			// sex doesnt fit
+			return;
+		}
+
 		if (getPerson(*p2, pd) == NULL)
 		{
 			if (getPerson(*p1, pd) == NULL) // both unknown
@@ -214,7 +222,7 @@ void add(int count, char** strings, PeopleData* pd)
 			}
 			else // parent known
 			{
-				Person* temp = p1;
+				temp = p1;
 				p1 = getPerson(*p1, pd);
 				free(temp->name);
 				free(temp->children);
@@ -226,9 +234,9 @@ void add(int count, char** strings, PeopleData* pd)
 			p1->children[p1->child_c - 1] = p2;
 			p2->parents[parent] = p1;
 		}
-		else
+		else // child known
 		{
-			Person* temp = p2;
+			temp = p2;
 			p2 = getPerson(*p2, pd);
 			free(temp->name);
 			free(temp->children);
@@ -236,16 +244,19 @@ void add(int count, char** strings, PeopleData* pd)
 
 			if (getPerson(*p1, pd) == NULL) // parent unknown
 			{
-				bool parent_null = p2->parents[parent] == NULL;
-
-				if (!parent_null)
+				if (p2->parents[parent] == NULL)
+				{
+					addPerson(p1, pd);
+					p1->child_c++;
+					p1->children = realloc(p1->children, sizeof(Person*) * p1->child_c);
+					p1->children[p1->child_c - 1] = p2;
+					p2->parents[parent] = p1;
+				}
+				else
 				{
 					assert(p2->parents[parent]->name != NULL);
-					bool parent_unknown = p2->parents[parent]->name[0] == '?';
-
-					if (parent_unknown)
+					if (p2->parents[parent]->name[0] == '?')
 					{
-						temp = p1;
 						free(p2->parents[parent]->name);
 						p2->parents[parent]->name = p1->name;
 						p2->parents[parent]->sex = p1->sex;
@@ -255,20 +266,19 @@ void add(int count, char** strings, PeopleData* pd)
 					}
 					else
 					{
-						// impossible
+						// imposible relationship
+						return;
 					}
-				}
-				else
-				{
-					addPerson(p1, pd);
-					p1->child_c++;
-					p1->children = realloc(p1->children, sizeof(Person*) * p1->child_c);
-					p1->children[p1->child_c - 1] = p2;
-					p2->parents[parent] = p1;
 				}
 			}
 			else // both are known
 			{
+				temp = p1;
+				p1 = getPerson(*p1, pd);
+				free(temp->name);
+				free(temp->children);
+				free(temp);
+
 				if (p2->parents[parent] == NULL)
 				{
 					p2->parents[parent] = p1;
@@ -277,7 +287,70 @@ void add(int count, char** strings, PeopleData* pd)
 				}
 				else
 				{
-					// hmmmm
+					assert(p2->parents[parent]->name != NULL);
+					if (p2->parents[parent]->name[0] == '?')
+					{
+						// Complex merger yikes
+						Person* unknown = p2->parents[parent];
+
+						bool possible = (unknown->father == NULL || p1->father == NULL) ||
+							(unknown->mother == NULL || p1->mother == NULL);
+						int i;
+						for (i = 0; i < unknown->child_c; i++)
+						{
+							if (unknown->children[i]->parents[parent] == p1)
+							{
+								possible = FALSE;
+							}
+						}
+						for (i = 0; i < p1->child_c; i++)
+						{
+							if (p1->children[i]->parents[parent] == unknown)
+							{
+								possible = FALSE;
+							}
+						}
+						if (!possible)
+						{
+							// impossible relationship - merger not possible
+							return;
+						}
+
+						free(unknown->name);
+						for (i = 0; i < unknown->child_c; i++)
+						{
+							unknown->children[i]->parents[parent] = p1;
+						}
+						p1->children = realloc(p1->children, sizeof(Person*) * (p1->child_c + p2->child_c));
+						for (i = 0; i < unknown->child_c; i++)
+						{
+							p1->children[i + p1->child_c] = unknown->children[i];
+						}
+						for (i = 0; i < 2; i++)
+						{
+							if (unknown->parents[i] != NULL)
+							{
+								p1->parents[i] = unknown->parents[i];
+								int j;
+								for (j = 0; j < p1->parents[i]->child_c; j++)
+								{
+									if (p1->parents[j]->children[j] == unknown)
+									{
+										p1->parents[j]->children[j] = p1;
+									}
+								}
+							}
+						}
+						p1->child_c += unknown->child_c;
+						free(unknown->children);
+						removePerson(unknown, pd);
+						free(unknown);
+					}
+					else
+					{
+						//  impossible relationship
+						return;
+					}
 				}
 			}
 		}
@@ -289,6 +362,11 @@ void add(int count, char** strings, PeopleData* pd)
 	{
 		Sex parent1 = relationship[0] != 'f';
 		Sex parent2 = relationship[2] != 'f';
+		if (parent2 != p1->sex)
+		{
+			// sex doesnt fit
+			return;
+		}
 
 		if (getPerson(*p2, pd) == NULL)
 		{
@@ -465,6 +543,30 @@ void addPerson(Person* p, PeopleData* pd)
 	pd->people[pd->people_c - 1] = p;
 }
 
+void removePerson(Person* p, PeopleData* pd)
+{
+	int index = -1;
+	int i;
+	for (i = 0; i < pd->people_c; i++)
+	{
+		if (pd->people[i] == p)
+		{
+			index = i;
+			break;
+		}
+	}
+	if (index == -1)
+	{
+		return;
+	}
+
+
+	pd->people[index] = pd->people[pd->people_c - 1];
+
+	pd->people_c--;
+	pd->people = realloc(pd->people, sizeof(Person*) * pd->people_c);
+}
+
 Person* getPerson(const Person p, const PeopleData* pd)
 {
 	int i;
@@ -491,6 +593,11 @@ Person* getPersonByName(char* name, const Sex sex, const PeopleData* pd)
 
 void printPerson(const Person* p, const PeopleData* pd)
 {
+	if (p->name == NULL)
+	{
+		return;
+	}
+
 	printf("%s, ", p->name);
 
 	if (p->sex == M)
