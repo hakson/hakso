@@ -220,7 +220,6 @@ void add(int count, char** strings, PeopleData* pd)
 				free(temp->children);
 				free(temp);
 			}
-
 			addPerson(p2, pd);
 			p1->child_c++;
 			p1->children = realloc(p1->children, sizeof(Person*) * p1->child_c);
@@ -270,7 +269,16 @@ void add(int count, char** strings, PeopleData* pd)
 			}
 			else // both are known
 			{
-				//hmmmmmmmm
+				if (p2->parents[parent] == NULL)
+				{
+					p2->parents[parent] = p1;
+					p1->child_c++;
+					p1->children = realloc(p1->children, sizeof(Person*) * p1->child_c);
+				}
+				else
+				{
+					// hmmmm
+				}
 			}
 		}
 	}
@@ -287,26 +295,72 @@ void add(int count, char** strings, PeopleData* pd)
 			if (getPerson(*p1, pd) == NULL) // both unknown
 			{
 				addPerson(p1, pd);
-				addPerson(p2, pd);
-				Person* unknown_person = malloc(sizeof(Person));
-				unknown_person->name = malloc(sizeof(char));
-				unknown_person->name[0] = '?';
-				unknown_person->name[1] = (char)0;
-				unknown_person->sex = parent1;
-				unknown_person->child_c = 1;
-				unknown_person->children = malloc(sizeof(Person*));
-				unknown_person->children[0] = p2;
-				unknown_person->parents[parent2] = p1;
-				unknown_person->parents[!parent2] = NULL;
-				addPerson(unknown_person, pd);
-				p1->child_c++;
-				p1->children = malloc(sizeof(Person*));
-				p1->children[0] = unknown_person;
-				p2->parents[parent1] = unknown_person;
 			}
-			else // parent known
+			else // great parent known
+			{
+				Person* temp = p1;
+				p1 = getPerson(*p1, pd);
+				free(temp->name);
+				free(temp->children);
+				free(temp);
+			}
+			addPerson(p2, pd);
+			Person* unknown_person = malloc(sizeof(Person));
+			unknown_person->name = malloc(sizeof(char) * 2);
+			unknown_person->name[0] = '?';
+			unknown_person->name[1] = (char)0;
+			unknown_person->sex = parent1;
+			unknown_person->child_c = 1;
+			unknown_person->children = malloc(sizeof(Person*));
+			unknown_person->children[0] = p2;
+			unknown_person->parents[parent2] = p1;
+			unknown_person->parents[!parent2] = NULL;
+			addPerson(unknown_person, pd);
+			p1->child_c++;
+			p1->children = realloc(p1->children, sizeof(Person*) * p1->child_c);
+			p1->children[p1->child_c - 1] = unknown_person;
+			p2->parents[parent1] = unknown_person;
+		}
+		else // child known
+		{
+			if (getPerson(*p1, pd) == NULL) // great parent unknown
 			{
 
+			}
+			else // both known
+			{
+				if (p2->parents[parent1] == NULL)
+				{
+					Person*	unknown_person = malloc(sizeof(Person));
+					unknown_person->name = malloc(sizeof(char) * 2);
+					unknown_person->name[0] = '?';
+					unknown_person->name[1] = (char)0;
+					unknown_person->sex = parent1;
+					unknown_person->child_c = 1;
+					unknown_person->children = malloc(sizeof(Person*));
+					unknown_person->children[0] = p2;
+					unknown_person->parents[parent2] = p1;
+					unknown_person->parents[!parent2] = NULL;
+					addPerson(unknown_person, pd);
+					p1->child_c++;
+					p1->children = realloc(p1->children, sizeof(Person*) * p1->child_c);
+					p1->children[p1->child_c - 1] = unknown_person;
+					p2->parents[parent1] = unknown_person;
+				}
+				else
+				{
+					if (p2->parents[parent2] == NULL)
+					{
+						p2->parents[parent2] = p1;
+						p1->child_c++;
+						p1->children = realloc(p1->children, sizeof(Person*) * p1->child_c);
+						p1->children[p1->child_c - 1] = p2->parents[parent2];
+					}
+					else
+					{
+						// error message
+					}
+				}
 			}
 		}
 	}
