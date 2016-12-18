@@ -1,9 +1,26 @@
 add kunibert ba [m] fgf maghret al von der bohm [f]
 add ma lu [f] mother kunibert ba [m]
 add aba bab [f] mother ma lu [f]
-add ? [f] mother ma lu [f]
 add ark bohm [m] father maghret al von der bohm [f]
+add pa lu [m] father ma lu [f]
+add gapa lu [m] fgf gpa lu [m]
+add gpa lu [m] father do lu [f]
+add do lu [f] mother maghret al von der bohm [f]
+draw-all YoYoPenis
 
 add A [m] fgf C [m]
 add B [m] father D [m]
 add B [m] father C [m]
+
+add A [m] fgf C [m]
+add B [m] fgf D [m]
+add B [m] father C [m]
+
+add A [f] mother C [m]
+add B [m] father D [m]
+add B [m] father C [m]
+draw-all YoYoPenis
+
+add ? [f] mother ma lu [f]
+
+dot -Tpng C:\Users\gidch\Desktop\ESP_ASS\YoYoPenis.dot > C:\Users\gidch\Desktop\ESP_ASS\YoYoPenis.png

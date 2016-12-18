@@ -3,6 +3,8 @@
 #include <string.h>
 #include <assert.h>
 
+#define _CRT_SECURE_NO_WARNINGS
+
 #define DEBUG
 #define BUFFER_LEN 100
 
@@ -48,11 +50,14 @@ void relationship(int count, char** strings, PeopleData* pd);
 void list(int count, char** strings, PeopleData* pd);
 void readInput(int* count, char*** strings);
 void addPerson(Person* p, PeopleData* pd);
+bool mergePeople(Person * unknown, Person * p1, Sex relation, PeopleData * pd);
 void removePerson(Person* p, PeopleData* pd);
 Person* getPerson(const Person p, const PeopleData* pd);
 Person* getPersonByName(char* name, const Sex sex, const PeopleData* pd);
-void printPerson(const Person* p, const PeopleData* pd);
+void printPerson(const Person* p);
 void printPeople(const PeopleData* pd);
+void sortPeople(PeopleData * pd);
+int alphabetize(const void * a, const void * b);
 
 
 int main(int argc, char* argv)
@@ -210,12 +215,13 @@ void add(int count, char** strings, PeopleData* pd)
 		Sex parent = strcmp(relationship, "father") != 0;
 		if (parent != p1->sex)
 		{
-			// sex doesnt fit
+			// todo sex doesnt fit
 			return;
 		}
 
 		if (getPerson(*p2, pd) == NULL)
 		{
+			addPerson(p2, pd);
 			if (getPerson(*p1, pd) == NULL) // both unknown
 			{
 				addPerson(p1, pd);
@@ -228,7 +234,6 @@ void add(int count, char** strings, PeopleData* pd)
 				free(temp->children);
 				free(temp);
 			}
-			addPerson(p2, pd);
 			p1->child_c++;
 			p1->children = realloc(p1->children, sizeof(Person*) * p1->child_c);
 			p1->children[p1->child_c - 1] = p2;
@@ -259,14 +264,13 @@ void add(int count, char** strings, PeopleData* pd)
 					{
 						free(p2->parents[parent]->name);
 						p2->parents[parent]->name = p1->name;
-						p2->parents[parent]->sex = p1->sex;
 						free(p1->children); // probably not necesary
 						free(p1);
 						p1 = p2->parents[parent];
 					}
 					else
 					{
-						// imposible relationship
+						// todo imposible relationship
 						return;
 					}
 				}
@@ -284,6 +288,7 @@ void add(int count, char** strings, PeopleData* pd)
 					p2->parents[parent] = p1;
 					p1->child_c++;
 					p1->children = realloc(p1->children, sizeof(Person*) * p1->child_c);
+					p1->children[p1->child_c - 1] = p2;
 				}
 				else
 				{
@@ -291,60 +296,7 @@ void add(int count, char** strings, PeopleData* pd)
 					if (p2->parents[parent]->name[0] == '?')
 					{
 						// Complex merger yikes
-						Person* unknown = p2->parents[parent];
-
-						bool possible = (unknown->father == NULL || p1->father == NULL) ||
-							(unknown->mother == NULL || p1->mother == NULL);
-						int i;
-						for (i = 0; i < unknown->child_c; i++)
-						{
-							if (unknown->children[i]->parents[parent] == p1)
-							{
-								possible = FALSE;
-							}
-						}
-						for (i = 0; i < p1->child_c; i++)
-						{
-							if (p1->children[i]->parents[parent] == unknown)
-							{
-								possible = FALSE;
-							}
-						}
-						if (!possible)
-						{
-							// impossible relationship - merger not possible
-							return;
-						}
-
-						free(unknown->name);
-						for (i = 0; i < unknown->child_c; i++)
-						{
-							unknown->children[i]->parents[parent] = p1;
-						}
-						p1->children = realloc(p1->children, sizeof(Person*) * (p1->child_c + p2->child_c));
-						for (i = 0; i < unknown->child_c; i++)
-						{
-							p1->children[i + p1->child_c] = unknown->children[i];
-						}
-						for (i = 0; i < 2; i++)
-						{
-							if (unknown->parents[i] != NULL)
-							{
-								p1->parents[i] = unknown->parents[i];
-								int j;
-								for (j = 0; j < p1->parents[i]->child_c; j++)
-								{
-									if (p1->parents[j]->children[j] == unknown)
-									{
-										p1->parents[j]->children[j] = p1;
-									}
-								}
-							}
-						}
-						p1->child_c += unknown->child_c;
-						free(unknown->children);
-						removePerson(unknown, pd);
-						free(unknown);
+						mergePeople(p2->parents[parent], p1, parent, pd);
 					}
 					else
 					{
@@ -376,7 +328,7 @@ void add(int count, char** strings, PeopleData* pd)
 			}
 			else // great parent known
 			{
-				Person* temp = p1;
+				temp = p1;
 				p1 = getPerson(*p1, pd);
 				free(temp->name);
 				free(temp->children);
@@ -451,7 +403,73 @@ void add(int count, char** strings, PeopleData* pd)
 
 void drawAll(int count, char** strings, PeopleData* pd)
 {
-	printf("draw\n");
+	if (count != 2)
+	{
+		// todo wrong parametercount
+		return;
+	}
+
+	char* filename = malloc((strlen(strings[1]) + 5) * sizeof(char));
+	strcpy(filename, strings[1]);
+	strcpy(filename + strlen(strings[1]), ".dot");
+
+	FILE* f = fopen(filename, "w+");
+
+	fputs("digraph FamilyTree\n", f);
+	fputs("{\n", f);
+
+	int i;
+	for (i = 0; i < pd->people_c; i++)
+	{
+		int j;
+		for (j = 1; j > -1; j--)
+		{
+			if (pd->people[i]->parents[j] == NULL)
+			{
+				continue;
+			}
+			fputs("  ", f);
+
+			fputs("\"", f);
+			fputs(pd->people[i]->parents[j]->name, f);
+			if (j == M)
+			{
+				fputs(" [m]", f);
+			}
+			else
+			{
+				fputs(" [f]", f);
+			}
+			fputs("\"", f);
+			
+			fputs(" -> ", f);
+
+			fputs("\"", f);
+			fputs(pd->people[i]->name, f);
+			if (pd->people[i]->sex == M)
+			{
+				fputs(" [m]", f);
+			}
+			else
+			{
+				fputs(" [f]", f);
+			}
+			fputs("\"", f);
+
+			fputs("\n", f);
+		}
+	}
+
+	fputs("}\n", f);
+
+	fclose(f);
+
+	free(filename);
+
+#ifdef DEBUG
+	printf("drawn\n");
+#endif // DEBUG
+
 }
 
 void draw(int count, char** strings, PeopleData* pd)
@@ -472,7 +490,7 @@ void list(int count, char** strings, PeopleData* pd)
 void readInput(int* count, char*** strings)
 {
 	char in_str[BUFFER_LEN];
-	printf("esp>");
+	printf("esp> ");
 	fgets(in_str, BUFFER_LEN, stdin);
 
 	char * pch = NULL;
@@ -502,9 +520,9 @@ void addPerson(Person* p, PeopleData* pd)
 {
 	if (strcmp(p->name, "?") == 0)
 	{
-		p->name = realloc(p->name, sizeof(char*) * 2);
 		char number[5];
-		sprintf(number, "%d", pd->unknowns);
+		pd->unknowns++;
+		sprintf(number, "%d", pd->unknowns + 1);
 		if (pd->unknowns < 10)
 		{
 			p->name = realloc(p->name, sizeof(char*) * 3);
@@ -541,6 +559,52 @@ void addPerson(Person* p, PeopleData* pd)
 	pd->people_c++;
 	pd->people = realloc(pd->people, sizeof(Person*) * pd->people_c);
 	pd->people[pd->people_c - 1] = p;
+	sortPeople(pd);
+}
+
+bool mergePeople(Person* unknown, Person* p1, Sex relation, PeopleData* pd)
+{
+	bool possible = (unknown->father == NULL || p1->father == NULL) ||
+		(unknown->mother == NULL || p1->mother == NULL);
+	if (!possible)
+	{
+		// impossible relationship - merger not possible
+		return FALSE;
+	}
+
+	free(unknown->name);
+	int i;
+	for (i = 0; i < unknown->child_c; i++)
+	{
+		unknown->children[i]->parents[relation] = p1;
+	}
+	p1->children = realloc(p1->children, sizeof(Person*) * (p1->child_c + unknown->child_c));
+	for (i = 0; i < unknown->child_c; i++)
+	{
+		p1->children[i + p1->child_c] = unknown->children[i];
+	}
+	for (i = 0; i < 2; i++)
+	{
+		if (unknown->parents[i] != NULL)
+		{
+			p1->parents[i] = unknown->parents[i];
+			int j;
+			for (j = 0; j < p1->parents[i]->child_c; j++)
+			{
+				if (p1->parents[j]->children[j] == unknown)
+				{
+					p1->parents[j]->children[j] = p1;
+				}
+			}
+		}
+	}
+	p1->child_c += unknown->child_c;
+	free(unknown->children);
+	removePerson(unknown, pd);
+	free(unknown);
+
+	sortPeople(pd);
+	return TRUE;
 }
 
 void removePerson(Person* p, PeopleData* pd)
@@ -560,11 +624,11 @@ void removePerson(Person* p, PeopleData* pd)
 		return;
 	}
 
-
 	pd->people[index] = pd->people[pd->people_c - 1];
 
 	pd->people_c--;
 	pd->people = realloc(pd->people, sizeof(Person*) * pd->people_c);
+	sortPeople(pd);
 }
 
 Person* getPerson(const Person p, const PeopleData* pd)
@@ -591,7 +655,7 @@ Person* getPersonByName(char* name, const Sex sex, const PeopleData* pd)
 	return getPerson(p, pd);
 }
 
-void printPerson(const Person* p, const PeopleData* pd)
+void printPerson(const Person* p)
 {
 	if (p->name == NULL)
 	{
@@ -637,6 +701,20 @@ void printPeople(const PeopleData* pd)
 	int i;
 	for (i = 0; i < pd->people_c; i++)
 	{
-		printPerson(pd->people[i], pd);
+		printPerson(pd->people[i]);
 	}
+}
+
+void sortPeople(PeopleData* pd)
+{
+	if (pd->people_c > 1)
+	{
+		qsort(pd->people, pd->people_c, sizeof(Person**), alphabetize);
+	}
+}
+
+int alphabetize(const void * a, const void * b)
+{
+	int c = strcmp((*((Person**)a))->name, (*((Person**)b))->name);
+	return c;
 }
