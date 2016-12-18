@@ -456,7 +456,7 @@ void drawAll(int count, char** strings, PeopleData* pd)
 			}
 			fputs("\"", f);
 
-			fputs("\n", f);
+			fputs(";\n", f);
 		}
 	}
 

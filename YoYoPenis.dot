@@ -1,13 +1,12 @@
 digraph FamilyTree
 {
-  "Alois [m]";
-  "Angela [f]" -> "Christine [f]";
-  "Angela [f]" -> "Manfred [m]";
-  "Christine [f]" -> "Rosa [f]";
-  "Christine [f]" -> "Alois [m]";
-  "Johann [m]";
-  "Manfred [m]" -> "Theresia [f]";
-  "Manfred [m]" -> "Johann [m]";
-  "Theresia [f]" -> "Theresia Sr. [f]";
-  "Theresia Sr. [f]";
+  "gapa lu [m]" -> "?3 [m]";
+  "kunibert ba [m]" -> "ark bohm [m]";
+  "gpa lu [m]" -> "do lu [f]";
+  "?3 [m]" -> "gpa lu [m]";
+  "ma lu [f]" -> "kunibert ba [m]";
+  "aba bab [f]" -> "ma lu [f]";
+  "pa lu [m]" -> "ma lu [f]";
+  "do lu [f]" -> "maghret al von der bohm [f]";
+  "ark bohm [m]" -> "maghret al von der bohm [f]";
 }
