@@ -3,8 +3,6 @@
 #include <string.h>
 #include <assert.h>
 
-#define _CRT_SECURE_NO_WARNINGS
-
 #define DEBUG
 #define BUFFER_LEN 100
 
@@ -57,7 +55,7 @@ Person* getPersonByName(char* name, const Sex sex, const PeopleData* pd);
 void printPerson(const Person* p);
 void printPeople(const PeopleData* pd);
 void sortPeople(PeopleData * pd);
-int alphabetize(const void * a, const void * b);
+int sortByName(const void * a, const void * b);
 
 
 int main(int argc, char* argv)
@@ -73,6 +71,7 @@ int main(int argc, char* argv)
 	// main program loop
 	while (TRUE)
 	{
+		int i;
 		int count = 0;
 		char** strings = NULL;
 		readInput(&count, &strings);
@@ -91,13 +90,22 @@ int main(int argc, char* argv)
 		{
 			drawAll(count, strings, &pd);
 		}
-		else if (strcmp(strings[0], "quit"))
+		else if (strcmp(strings[0], "list") == 0)
 		{
-			exit(0);
+			list(count, strings, &pd);
+		}
+		else if (strcmp(strings[0], "quit") == 0)
+		{
+			for (i = 0; i < count; i++)
+			{
+				free(strings[i]);
+			}
+			free(strings);
+
+			break;
 		}
 
 		// free and reset
-		int i;
 		for (i = 0; i < count; i++)
 		{
 			free(strings[i]);
@@ -117,20 +125,8 @@ void add(int count, char** strings, PeopleData* pd)
 		return;
 	}
 
-	Person* p1 = malloc(sizeof(Person));
-	p1->name = NULL;
-	p1->sex = M;
-	p1->father = NULL;
-	p1->mother = NULL;
-	p1->children = NULL;
-	p1->child_c = 0;
-	Person* p2 = malloc(sizeof(Person));
-	p2->name = NULL;
-	p2->sex = M;
-	p2->father = NULL;
-	p2->mother = NULL;
-	p2->children = NULL;
-	p2->child_c = 0;
+	Person* p1 = calloc(1, sizeof(Person));
+	Person* p2 = calloc(1, sizeof(Person));
 
 	int names_len[2] = { 0,0 };
 	char *names[2] = { NULL,NULL };
@@ -409,6 +405,8 @@ void drawAll(int count, char** strings, PeopleData* pd)
 		return;
 	}
 
+	sortPeople(pd);
+
 	char* filename = malloc((strlen(strings[1]) + 5) * sizeof(char));
 	strcpy(filename, strings[1]);
 	strcpy(filename + strlen(strings[1]), ".dot");
@@ -421,30 +419,11 @@ void drawAll(int count, char** strings, PeopleData* pd)
 	int i;
 	for (i = 0; i < pd->people_c; i++)
 	{
-		int j;
-		for (j = 1; j > -1; j--)
+		// write only the name if end of a tree
+		// not necesary but like that on all the examples
+		if (pd->people[i]->father == NULL && pd->people[i]->mother == NULL)
 		{
-			if (pd->people[i]->parents[j] == NULL)
-			{
-				continue;
-			}
-			fputs("  ", f);
-
-			fputs("\"", f);
-			fputs(pd->people[i]->parents[j]->name, f);
-			if (j == M)
-			{
-				fputs(" [m]", f);
-			}
-			else
-			{
-				fputs(" [f]", f);
-			}
-			fputs("\"", f);
-			
-			fputs(" -> ", f);
-
-			fputs("\"", f);
+			fputs("  \"", f);
 			fputs(pd->people[i]->name, f);
 			if (pd->people[i]->sex == M)
 			{
@@ -454,9 +433,43 @@ void drawAll(int count, char** strings, PeopleData* pd)
 			{
 				fputs(" [f]", f);
 			}
-			fputs("\"", f);
+			fputs("\";\n", f);
+			continue;
+		}
 
-			fputs(";\n", f);
+		// write the relationships if they have children
+		int j;
+		for ( j = 1; j > -1; j--)
+		{
+			if (pd->people[i]->parents[j] == NULL)
+			{
+				continue;
+			}
+
+			fputs("  \"", f);
+			fputs(pd->people[i]->name, f);
+			if (pd->people[i]->sex == M)
+			{
+				fputs(" [m]", f);
+			}
+			else
+			{
+				fputs(" [f]", f);
+			}
+
+			fputs("\" -> \"", f);
+
+			fputs(pd->people[i]->parents[j]->name, f);
+			if (pd->people[i]->parents[j]->sex == M)
+			{
+				fputs(" [m]", f);
+			}
+			else
+			{
+				fputs(" [f]", f);
+			}
+
+			fputs("\";\n", f);
 		}
 	}
 
@@ -484,7 +497,35 @@ void relationship(int count, char** strings, PeopleData* pd)
 
 void list(int count, char** strings, PeopleData* pd)
 {
+	if (count != 1)
+	{
+		// todo error message
+		return;
+	}
 
+	if (pd->people_c == 0)
+	{
+		// todo error message
+		return;
+	}
+
+	sortPeople(pd);
+
+	int i;
+	for (i = 0; i < pd->people_c; i++)
+	{
+		printf(pd->people[i]->name);
+		printf(" ");
+		if (pd->people[i]->sex == M)
+		{
+			printf("[m]");
+		}
+		else
+		{
+			printf("[f]");
+		}
+		printf("\n");
+	}
 }
 
 void readInput(int* count, char*** strings)
@@ -559,7 +600,6 @@ void addPerson(Person* p, PeopleData* pd)
 	pd->people_c++;
 	pd->people = realloc(pd->people, sizeof(Person*) * pd->people_c);
 	pd->people[pd->people_c - 1] = p;
-	sortPeople(pd);
 }
 
 bool mergePeople(Person* unknown, Person* p1, Sex relation, PeopleData* pd)
@@ -603,7 +643,6 @@ bool mergePeople(Person* unknown, Person* p1, Sex relation, PeopleData* pd)
 	removePerson(unknown, pd);
 	free(unknown);
 
-	sortPeople(pd);
 	return TRUE;
 }
 
@@ -628,7 +667,6 @@ void removePerson(Person* p, PeopleData* pd)
 
 	pd->people_c--;
 	pd->people = realloc(pd->people, sizeof(Person*) * pd->people_c);
-	sortPeople(pd);
 }
 
 Person* getPerson(const Person p, const PeopleData* pd)
@@ -709,12 +747,26 @@ void sortPeople(PeopleData* pd)
 {
 	if (pd->people_c > 1)
 	{
-		qsort(pd->people, pd->people_c, sizeof(Person**), alphabetize);
+		qsort(pd->people, pd->people_c, sizeof(Person**), sortByName);
 	}
 }
 
-int alphabetize(const void * a, const void * b)
+int sortByName(const void * a, const void * b)
 {
-	int c = strcmp((*((Person**)a))->name, (*((Person**)b))->name);
+	Person* p1 = (*((Person**)a));
+	Person* p2 = (*((Person**)b));
+
+	int c = strcmp(p1->name, p2->name);
+	if (c == 0)
+	{
+		if (p2->sex == F)
+		{
+			return 1;
+		}
+		else
+		{
+			return -1;
+		}
+	}
 	return c;
 }

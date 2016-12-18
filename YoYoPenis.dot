@@ -1,12 +1,15 @@
 digraph FamilyTree
 {
-  "gapa lu [m]" -> "?3 [m]";
-  "kunibert ba [m]" -> "ark bohm [m]";
-  "gpa lu [m]" -> "do lu [f]";
-  "?3 [m]" -> "gpa lu [m]";
-  "ma lu [f]" -> "kunibert ba [m]";
-  "aba bab [f]" -> "ma lu [f]";
-  "pa lu [m]" -> "ma lu [f]";
-  "do lu [f]" -> "maghret al von der bohm [f]";
-  "ark bohm [m]" -> "maghret al von der bohm [f]";
+  "?3 [m]" -> "gapa lu [m]";
+  "aba bab [f]";
+  "ark bohm [m]" -> "kunibert ba [m]";
+  "do lu [f]" -> "gpa lu [m]";
+  "gapa lu [m]";
+  "gpa lu [m]" -> "?3 [m]";
+  "kunibert ba [m]" -> "ma lu [f]";
+  "ma lu [f]" -> "aba bab [f]";
+  "ma lu [f]" -> "pa lu [m]";
+  "maghret al von der bohm [f]" -> "do lu [f]";
+  "maghret al von der bohm [f]" -> "ark bohm [m]";
+  "pa lu [m]";
 }
